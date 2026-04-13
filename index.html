@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Basisrooster</title>
+
+    <link rel="stylesheet" href="style/main.css" />
+
+    <!-- Library om CSV/Excel te lezen -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <!-- Eigen script -->
+    <script src="js/main.js" defer></script>
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <div class="container">
+        <header>
+          <header>
+            <h1 id="page-title">Roosterwijzigingen</h1>
+          </header>
+        </header>
+
+        <main>
+          <div id="tables-container" class="tables-container"></div>
+
+          <div id="no-data" class="no-data" style="display: none">
+            Geen roosterdata gevonden.
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
