@@ -1,4 +1,4 @@
-const CSV_FILE = "dag 19-01 tm 23-01.csv";
+const CSV_FILE = "Roosters/dag 19-01 tm 23-01.csv";
 
 const DAG_NAMEN = {
   1: "Maandag",
