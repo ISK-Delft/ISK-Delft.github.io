@@ -163,13 +163,19 @@ async function init() {
 
   const roosterVandaag = rooster.filter((item) => item.datumString === vandaag);
 
-  const datumVoorTitel =
-    roosterVandaag[0]?.datum || new Date();
+  const datumVoorTitel = roosterVandaag[0]?.datum || new Date();
 
   document.getElementById("page-title").textContent =
     `Roosterwijzigingen – ${formatDatum(datumVoorTitel)}`;
 
   renderRooster(roosterVandaag);
 }
+
+// Elke 5 minuten opnieuw laden
+setInterval(() => {
+  location.reload();
+}, 60 * 1000);
+
+document.addEventListener("DOMContentLoaded", init);
 
 document.addEventListener("DOMContentLoaded", init);
