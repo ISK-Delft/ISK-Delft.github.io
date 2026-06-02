@@ -1,289 +1,175 @@
-const CSV_FILE = "Roosters/dag 19-01 tm 23-01.csv";
+let CSV_FILES = [];
 
-const DAG_NAMEN = {
-  1: "Maandag",
-  2: "Dinsdag",
-  3: "Woensdag",
-  4: "Donderdag",
-  5: "Vrijdag",
-};
-
-let slides = [];
-let currentSlide = 0;
-
-function getVandaagDagNummer() {
-  const vandaag = new Date().getDay();
-
-  if (vandaag === 0 || vandaag === 6) {
-    return null; // weekend
-  }
-
-  return vandaag; // maandag=1 t/m vrijdag=5
+async function loadCsvBestanden() {
+  const response = await fetch("Roosters/roosters.json");
+  return response.json();
 }
 
-// NIEUW: datum omzetten naar dagnummer (1-5)
-function parseDatum(datumString) {
-  const str = String(datumString);
+function vandaagAlsCsvDatum() {
+  const d = new Date();
+  const jaar = d.getFullYear();
+  const maand = String(d.getMonth() + 1).padStart(2, "0");
+  const dag = String(d.getDate()).padStart(2, "0");
 
-  const jaar = parseInt(str.substring(0, 4));
-  const maand = parseInt(str.substring(4, 6)) - 1; // JS maand = 0-11
-  const dag = parseInt(str.substring(6, 8));
+  return `${jaar}${maand}${dag}`;
+}
+
+function parseDatum(datumString) {
+  const str = String(datumString).replaceAll('"', "");
+
+  const jaar = Number(str.substring(0, 4));
+  const maand = Number(str.substring(4, 6)) - 1;
+  const dag = Number(str.substring(6, 8));
 
   return new Date(jaar, maand, dag);
 }
 
-function getVandaagTekst() {
-  const datum = new Date();
-
+function formatDatum(datum) {
   const dagen = [
-    "zondag",
-    "maandag",
-    "dinsdag",
-    "woensdag",
-    "donderdag",
-    "vrijdag",
-    "zaterdag",
+    "zondag", "maandag", "dinsdag", "woensdag",
+    "donderdag", "vrijdag", "zaterdag",
   ];
+
   const maanden = [
-    "januari",
-    "februari",
-    "maart",
-    "april",
-    "mei",
-    "juni",
-    "juli",
-    "augustus",
-    "september",
-    "oktober",
-    "november",
-    "december",
+    "januari", "februari", "maart", "april", "mei", "juni",
+    "juli", "augustus", "september", "oktober", "november", "december",
   ];
 
   return `${dagen[datum.getDay()]} ${datum.getDate()} ${maanden[datum.getMonth()]}`;
 }
 
-function formatDatum(datum) {
-  const maanden = [
-    "januari",
-    "februari",
-    "maart",
-    "april",
-    "mei",
-    "juni",
-    "juli",
-    "augustus",
-    "september",
-    "oktober",
-    "november",
-    "december",
-  ];
+async function loadCSV(file) {
+  const response = await fetch(file);
 
-  return `${datum.getDate()} ${maanden[datum.getMonth()]}`;
-}
+  if (!response.ok) {
+    console.warn(`Kon CSV niet laden: ${file}`);
+    return [];
+  }
 
-async function loadCSV() {
-  const response = await fetch(CSV_FILE);
   const csvText = await response.text();
-
   const workbook = XLSX.read(csvText, { type: "string" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-  // GEEN headers → array van arrays
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  return XLSX.utils.sheet_to_json(sheet, { header: 1 });
+}
 
-  return rows;
+async function loadAllCSVs() {
+  const alleRows = [];
+
+  for (const file of CSV_FILES) {
+    const rows = await loadCSV(file);
+    alleRows.push(...rows);
+  }
+
+  return alleRows;
 }
 
 function mapBasisRooster(rows) {
-  return rows.map((r) => {
-    const datumObj = parseDatum(r[0]);
+  return rows
+    .filter((r) => r && r.length > 0)
+    .map((r) => {
+      const datumString = String(r[0]).replaceAll('"', "");
+      const datumObj = parseDatum(datumString);
 
-    return {
-      datum: datumObj,
-      datumFormatted: formatDatum(datumObj),
-      dag: datumObj.getDay(), // 1-5
-      klas: r[2] || "",
-      docent: r[3] || "",
-      vak: r[4] || "",
-      lokaal: r[5] || "",
-      lesuur: Number(r[6]),
-    };
-  });
-}
-
-function groepeerRooster(data) {
-  const groepen = {};
-
-  data.forEach((item) => {
-    if (!groepen[item.dag]) {
-      groepen[item.dag] = {};
-    }
-
-    if (!groepen[item.dag][item.lesuur]) {
-      groepen[item.dag][item.lesuur] = [];
-    }
-
-    groepen[item.dag][item.lesuur].push(item);
-  });
-
-  return groepen;
-}
-
-function maakSlides(groepen) {
-  slides = [];
-
-  Object.keys(groepen)
-    .sort((a, b) => a - b)
-    .forEach((dag) => {
-      slides.push({
-        dag: dag,
-        data: groepen[dag],
-      });
+      return {
+        datumString,
+        datum: datumObj,
+        klas: r[2] || "",
+        docent: r[3] || "",
+        vak: r[4] || "",
+        lokaal: r[5] || "",
+        lesuur: Number(r[6]),
+      };
     });
 }
 
-function renderSlide() {
+function renderRooster(data) {
   const container = document.getElementById("tables-container");
+  const noData = document.getElementById("no-data");
+
   container.innerHTML = "";
 
-  if (slides.length === 0) return;
-
-  const slide = slides[currentSlide];
-
-  const alleLesuren = Object.keys(slide.data).sort((a, b) => a - b);
-
-  let allData = [];
-
-  alleLesuren.forEach((lesuur) => {
-    allData.push({ type: "header", lesuur });
-
-    slide.data[lesuur].forEach((item) => {
-      allData.push({ type: "row", item });
-    });
-  });
-
-  const kolommen = 5;
-  const perKolom = Math.ceil(allData.length / kolommen);
-
-  let chunks = [];
-
-  for (let i = 0; i < kolommen; i++) {
-    chunks.push(allData.slice(i * perKolom, (i + 1) * perKolom));
+  if (data.length === 0) {
+    noData.style.display = "block";
+    return;
   }
 
-  chunks.forEach((chunk) => {
+  noData.style.display = "none";
+
+  data.sort((a, b) => {
+    const klasSortering = (a.klas || "").localeCompare(b.klas || "", "nl", {
+      numeric: true,
+      sensitivity: "base",
+    });
+
+    return klasSortering || a.lesuur - b.lesuur;
+  });
+
+  const groepenPerKlas = {};
+
+  data.forEach((item) => {
+    if (!item.klas) return;
+
+    if (!groepenPerKlas[item.klas]) {
+      groepenPerKlas[item.klas] = [];
+    }
+
+    groepenPerKlas[item.klas].push(item);
+  });
+
+  Object.keys(groepenPerKlas).forEach((klas) => {
     const table = document.createElement("table");
     table.classList.add("rooster-tabel");
 
     const tbody = document.createElement("tbody");
 
-    // 🔥 KOLOM HEADERS (alleen 1x, zonder datum/dag)
-    const columnHeader = document.createElement("tr");
-    columnHeader.innerHTML = `
-      <th>Klas</th>
-      <th>Vak</th>
-      <th>Docent</th>
-      <th>Lokaal</th>
+    tbody.innerHTML = `
+      <tr>
+        <th colspan="4">${klas}</th>
+      </tr>
+      <tr>
+        <th>Lesuur</th>
+        <th>Vak</th>
+        <th>Docent</th>
+        <th>Lokaal</th>
+      </tr>
     `;
-    tbody.appendChild(columnHeader);
 
-    chunk.forEach((entry) => {
-      if (entry.type === "header") {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td colspan="4" style="
-            font-weight: bold;
-            text-align: center;
-            background: rgba(240,240,240,0.9);
-            padding: 2px;
-          ">
-            Lesuur ${entry.lesuur}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      }
+    groepenPerKlas[klas].forEach((item) => {
+      const tr = document.createElement("tr");
 
-      if (entry.type === "row") {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${entry.item.klas}</td>
-          <td>${entry.item.vak}</td>
-          <td>${entry.item.docent}</td>
-          <td>${entry.item.lokaal}</td>
-        `;
-        tbody.appendChild(tr);
-      }
+      tr.innerHTML = `
+        <td>${item.lesuur}</td>
+        <td>${item.vak}</td>
+        <td>${item.docent}</td>
+        <td>${item.lokaal}</td>
+      `;
+
+      tbody.appendChild(tr);
     });
 
     table.appendChild(tbody);
     container.appendChild(table);
   });
-
-  // 🔥 BELANGRIJK: titel buiten de tabellen zetten
-  const eersteLesuur = Object.values(slide.data)[0];
-  const firstItem = eersteLesuur?.[0];
-
-  let datumText = "";
-
-  if (firstItem?.datum) {
-    const datum = firstItem.datum;
-
-    const dagen = [
-      "zondag",
-      "maandag",
-      "dinsdag",
-      "woensdag",
-      "donderdag",
-      "vrijdag",
-      "zaterdag",
-    ];
-    const maanden = [
-      "januari",
-      "februari",
-      "maart",
-      "april",
-      "mei",
-      "juni",
-      "juli",
-      "augustus",
-      "september",
-      "oktober",
-      "november",
-      "december",
-    ];
-
-    datumText = `${dagen[datum.getDay()]} ${datum.getDate()} ${maanden[datum.getMonth()]}`;
-  }
-
-  document.getElementById("page-title").textContent =
-    `Roosterwijzigingen – ${datumText}`;
-}
-
-function startSlideshow() {
-  renderSlide();
-
-  setInterval(() => {
-    currentSlide++;
-
-    if (currentSlide >= slides.length) {
-      currentSlide = 0;
-    }
-
-    renderSlide();
-  }, 10000);
 }
 
 async function init() {
-  document.getElementById("page-title").textContent = `Roosterwijzigingen`;
+  CSV_FILES = await loadCsvBestanden();
 
-  const rows = await loadCSV();
+  const vandaag = vandaagAlsCsvDatum();
+
+  const rows = await loadAllCSVs();
   const rooster = mapBasisRooster(rows);
 
-  const groepen = groepeerRooster(rooster);
+  const roosterVandaag = rooster.filter((item) => item.datumString === vandaag);
 
-  maakSlides(groepen);
+  const datumVoorTitel =
+    roosterVandaag[0]?.datum || new Date();
 
-  startSlideshow();
+  document.getElementById("page-title").textContent =
+    `Roosterwijzigingen – ${formatDatum(datumVoorTitel)}`;
+
+  renderRooster(roosterVandaag);
 }
 
 document.addEventListener("DOMContentLoaded", init);

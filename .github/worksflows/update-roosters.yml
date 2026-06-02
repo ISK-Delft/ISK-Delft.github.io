@@ -1,0 +1,30 @@
+name: Update roosters index
+
+on:
+  push:
+    paths:
+      - "Roosters/*.csv"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-roosters:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maak roosters.json
+        run: |
+          find Roosters -maxdepth 1 -name "*.csv" \
+            | sort \
+            | jq -R -s -c 'split("\n")[:-1]' \
+            > Roosters/roosters.json
+
+      - name: Commit roosters.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update roosters index"
+          file_pattern: Roosters/roosters.json
