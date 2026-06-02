@@ -177,5 +177,3 @@ setInterval(() => {
 }, 60 * 1000);
 
 document.addEventListener("DOMContentLoaded", init);
-
-document.addEventListener("DOMContentLoaded", init);
