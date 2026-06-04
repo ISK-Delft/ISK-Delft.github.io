@@ -16,12 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Maak roosters.json
+      - name: Maak roosters.json met nieuwste CSV
         run: |
-          find Roosters -maxdepth 1 -name "*.csv" \
-            | sort \
-            | jq -R -s -c 'split("\n")[:-1]' \
-            > Roosters/roosters.json
+          nieuwste=$(git ls-files "Roosters/*.csv" | while read file; do
+            echo "$(git log -1 --format="%ct" -- "$file") $file"
+          done | sort -nr | head -n 1 | cut -d' ' -f2-)
+
+          echo "[\"$nieuwste\"]" > Roosters/roosters.json
 
       - name: Commit roosters.json
         uses: stefanzweifel/git-auto-commit-action@v5
