@@ -1,0 +1,31 @@
+name: Update roosters index
+
+on:
+  push:
+    paths:
+      - "Roosters/*.csv"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-roosters:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maak roosters.json met nieuwste CSV
+        run: |
+          nieuwste=$(git ls-files "Roosters/*.csv" | while read file; do
+            echo "$(git log -1 --format="%ct" -- "$file") $file"
+          done | sort -nr | head -n 1 | cut -d' ' -f2-)
+
+          echo "[\"$nieuwste\"]" > Roosters/roosters.json
+
+      - name: Commit roosters.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update roosters index"
+          file_pattern: Roosters/roosters.json
